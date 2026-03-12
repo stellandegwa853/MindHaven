@@ -129,7 +129,7 @@ const styles = {
 
   header: {
     padding: "18px 25px",
-    backgroundColor: "#a5b4fc",
+    backgroundColor: "#818cf8",
     color: "white",
     display: "flex",
     justifyContent: "space-between",
