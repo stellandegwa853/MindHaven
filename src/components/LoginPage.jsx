@@ -1,132 +1,133 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { loginUser } from "../utils/auth";
 
 function LoginPage() {
+
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("user");
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-
-    let role = "user";
-
-    if (email.toLowerCase().includes("counsellor")) {
-      role = "counsellor";
-    }
+  const handleLogin = () => {
 
     loginUser(role);
 
+    if (role === "user") {
+      navigate("/dashboard");
+    }
+
     if (role === "counsellor") {
       navigate("/counsellor-dashboard");
-    } else {
-      navigate("/user-dashboard");
+    }
+
+    if (role === "admin") {
+      navigate("/admin");
     }
   };
 
   return (
     <div style={styles.container}>
+
       <div style={styles.card}>
+
         <h1 style={styles.title}>Mind Haven</h1>
-        <p style={styles.subtitle}>
-          A safe space for peer support
-        </p>
+        <p style={styles.subtitle}>Login to continue</p>
 
-        <form onSubmit={handleLogin} style={styles.form}>
-          <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={styles.input}
-          />
+        <label style={styles.label}>Email</label>
+        <input
+          style={styles.input}
+          type="email"
+          placeholder="Enter email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={styles.input}
-          />
+        <label style={styles.label}>Password</label>
+        <input
+          style={styles.input}
+          type="password"
+          placeholder="Enter password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
-          <button type="submit" style={styles.button}>
-            Log In
-          </button>
-        </form>
+        <label style={styles.label}>Login As</label>
+        <select
+          style={styles.input}
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+        >
+          <option value="user">User</option>
+          <option value="counsellor">Counsellor</option>
+          <option value="admin">Admin</option>
+        </select>
 
-        <p style={styles.footerText}>
-          Don't have an account?{" "}
-          <Link to="/signup" style={styles.link}>
-            Sign Up
-          </Link>
-        </p>
+        <button style={styles.button} onClick={handleLogin}>
+          Login
+        </button>
+
       </div>
+
     </div>
   );
 }
 
 const styles = {
+
   container: {
-    height: "100vh",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f4f6f8",
+    height: "100vh",
+    backgroundColor: "#f3f4f6",
     fontFamily: "Arial, sans-serif"
   },
+
   card: {
     backgroundColor: "white",
     padding: "40px",
     borderRadius: "12px",
     width: "350px",
-    boxShadow: "0 8px 20px rgba(0, 0, 0, 0.05)",
+    boxShadow: "0 6px 15px rgba(0,0,0,0.05)"
+  },
+
+  title: {
+    marginBottom: "10px",
     textAlign: "center"
   },
-  title: {
-    marginBottom: "5px",
-    fontSize: "24px",
-    fontWeight: "600",
-    color: "#1f2937"
-  },
+
   subtitle: {
-    marginBottom: "25px",
-    fontSize: "14px",
+    marginBottom: "20px",
+    textAlign: "center",
     color: "#6b7280"
   },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "15px"
+
+  label: {
+    display: "block",
+    marginTop: "15px",
+    marginBottom: "5px"
   },
+
   input: {
-    padding: "10px 12px",
+    width: "100%",
+    padding: "10px",
     borderRadius: "8px",
-    border: "1px solid #d1d5db",
-    fontSize: "14px"
+    border: "1px solid #e5e7eb"
   },
+
   button: {
+    marginTop: "20px",
+    width: "100%",
     padding: "10px",
     borderRadius: "8px",
     border: "none",
-    backgroundColor: "#1f2937",
+    backgroundColor: "#818cf8",
     color: "white",
-    cursor: "pointer",
-    fontWeight: "500"
-  },
-  footerText: {
-    marginTop: "20px",
-    fontSize: "13px",
-    color: "#6b7280"
-  },
-  link: {
-    color: "#2563eb",
-    textDecoration: "none",
-    fontWeight: "500"
+    cursor: "pointer"
   }
+
 };
 
 export default LoginPage;

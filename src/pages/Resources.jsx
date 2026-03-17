@@ -4,22 +4,18 @@ function Resources() {
   const resources = [
     {
       title: "Stress Management",
-      icon: "🧘",
       description: "Learn simple techniques to manage daily stress and maintain emotional balance."
     },
     {
       title: "Anxiety Support",
-      icon: "🌿",
       description: "Helpful tips for recognizing and managing anxiety in everyday life."
     },
     {
       title: "Study Burnout",
-      icon: "📚",
       description: "Strategies to avoid academic burnout and maintain healthy study habits."
     },
     {
       title: "Crisis Support",
-      icon: "☎️",
       description: "Information on where to seek immediate help when facing a mental health crisis."
     }
   ];

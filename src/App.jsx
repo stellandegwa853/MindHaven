@@ -3,13 +3,15 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import LoginPage from "./components/LoginPage";
 import SignUpPage from "./components/SignUpPage";
-import UserDashboard from "./components/UserDashboard";
+import UserDashboard from "./pages/UserDashboard";
 import CounsellorDashboard from "./components/CounsellorDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ChatPage from "./components/ChatPage";
 import CounsellorChatPage from "./components/CounsellorChatPage";
 import Resources from "./pages/Resources";
 import SessionHistory from "./pages/SessionHistory";
+import Profile from "./pages/Profile";
+import AdminDashboard from "./pages/AdminDashboard";
 
 function App() {
   return (
@@ -20,9 +22,11 @@ function App() {
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/resources" element={<Resources />} />
         <Route path="/session-history" element={<SessionHistory />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/admin" element={<AdminDashboard />} />
 
         <Route
-          path="/user-dashboard"
+          path="/dashboard"
           element={
             <ProtectedRoute allowedRole="user">
               <UserDashboard />

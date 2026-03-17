@@ -24,18 +24,11 @@ function UserDashboard() {
           Start Chat
         </button>
 
-        <button 
+        <button
           style={styles.navButton}
           onClick={() => navigate("/resources")}
         >
           Resources
-        </button>
-
-        <button
-          style={styles.navButton}
-          onClick={() => navigate("/session-history")}
-        >
-          Session History
         </button>
 
         <button style={styles.logoutButton} onClick={handleLogout}>
