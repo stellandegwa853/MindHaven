@@ -14,7 +14,8 @@ import Resources           from "./pages/Resources";
 import Journal             from "./pages/Journal";
 import SessionHistory      from "./pages/SessionHistory";
 import Profile             from "./pages/Profile";
-import AppointmentBooking from "./pages/AppointmentBooking";
+import AppointmentBooking from "./pages/Appointmentbooking";
+import AIChatBot from "./pages/AIChatBot";
 
 function App() {
   return (
@@ -81,6 +82,12 @@ function App() {
             <ProtectedRoute allowedRoles={["student", "user"]}>
               <AppointmentBooking />
             </ProtectedRoute>
+          } />
+
+          <Route path="/ai-chat" element={
+            <ProtectedRoute allowedRoles={["student", "user"]}>
+              <AIChatBot />
+           </ProtectedRoute>
           } />
 
           {/* Fallback */}
