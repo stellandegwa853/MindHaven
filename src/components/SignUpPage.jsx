@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginUser } from "../utils/auth";
+import { getUser } from "../utils/auth";
 
 function SignUpPage() {
   const navigate = useNavigate();
@@ -15,11 +15,9 @@ function SignUpPage() {
       return;
     }
 
-    loginUser(role);
-
     if (role === "user") {
-      navigate("/user-dashboard");
-    } else {
+      navigate("/dashboard");
+    } else if (role === "counsellor") {
       navigate("/counsellor-dashboard");
     }
   };

@@ -1,17 +1,23 @@
-export const loginUser = (role) => {
-  localStorage.setItem("isAuthenticated", "true");
-  localStorage.setItem("role", role);
-};
-
+// Helper used by all dashboard pages for logout
 export const logoutUser = () => {
-  localStorage.removeItem("isAuthenticated");
-  localStorage.removeItem("role");
+  localStorage.removeItem("mh_token");
+  localStorage.removeItem("mh_user");
 };
 
-export const isAuthenticated = () => {
-  return localStorage.getItem("isAuthenticated") === "true";
+// Get the stored token (for API calls later)
+export const getToken = () => localStorage.getItem("mh_token");
+
+// Get the stored user object
+export const getUser = () => {
+  const user = localStorage.getItem("mh_user");
+  return user ? JSON.parse(user) : null;
 };
 
+// Check if user is logged in
+export const isLoggedIn = () => !!localStorage.getItem("mh_token");
+
+// Check user role
 export const getUserRole = () => {
-  return localStorage.getItem("role");
+  const user = getUser();
+  return user ? user.role : null;
 };

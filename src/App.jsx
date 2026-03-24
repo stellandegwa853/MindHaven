@@ -1,66 +1,92 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 
-import LoginPage from "./components/LoginPage";
-import SignUpPage from "./components/SignUpPage";
-import UserDashboard from "./pages/UserDashboard";
+import LoginPage           from "./components/LoginPage";
+import SignUpPage          from "./components/SignUpPage";
+import ProtectedRoute      from "./components/ProtectedRoute";
+import UserDashboard       from "./pages/UserDashboard";
 import CounsellorDashboard from "./components/CounsellorDashboard";
-import ProtectedRoute from "./components/ProtectedRoute";
-import ChatPage from "./components/ChatPage";
-import CounsellorChatPage from "./components/CounsellorChatPage";
-import Resources from "./pages/Resources";
-import SessionHistory from "./pages/SessionHistory";
-import Profile from "./pages/Profile";
-import AdminDashboard from "./pages/AdminDashboard";
+import AdminDashboard      from "./pages/AdminDashboard";
+import ChatPage            from "./components/ChatPage";
+import CounsellorChatPage  from "./components/CounsellorChatPage";
+import Resources           from "./pages/Resources";
+import Journal             from "./pages/Journal";
+import SessionHistory      from "./pages/SessionHistory";
+import Profile             from "./pages/Profile";
+import AppointmentBooking from "./pages/AppointmentBooking";
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/resources" element={<Resources />} />
-        <Route path="/session-history" element={<SessionHistory />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/admin" element={<AdminDashboard />} />
+      <AuthProvider>
+        <Routes>
+          {/* Public */}
+          <Route path="/"       element={<LoginPage />} />
+          <Route path="/login"  element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
 
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute allowedRole="user">
+          {/* Student */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute allowedRoles={["student", "user"]}>
               <UserDashboard />
             </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/counsellor-dashboard"
-          element={
-            <ProtectedRoute allowedRole="counsellor">
-              <CounsellorDashboard />
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/chat"
-          element={
-            <ProtectedRoute allowedRole="user">
+          } />
+          <Route path="/chat" element={
+            <ProtectedRoute allowedRoles={["student", "user"]}>
               <ChatPage />
             </ProtectedRoute>
-        }
-        />
+          } />
+          <Route path="/resources" element={
+            <ProtectedRoute allowedRoles={["student", "user"]}>
+              <Resources />
+            </ProtectedRoute>
+          } />
+          <Route path="/journal" element={
+            <ProtectedRoute allowedRoles={["student", "user"]}>
+              <Journal />
+            </ProtectedRoute>
+          } />
+          <Route path="/session-history" element={
+            <ProtectedRoute allowedRoles={["student", "user"]}>
+              <SessionHistory />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute allowedRoles={["student", "user", "counsellor", "admin"]}>
+              <Profile />
+            </ProtectedRoute>
+          } />
 
-        <Route
-          path="/counsellor-chat"
-          element={
-            <ProtectedRoute allowedRole="counsellor">
+          {/* Counsellor */}
+          <Route path="/counsellor-dashboard" element={
+            <ProtectedRoute allowedRoles={["counsellor"]}>
+              <CounsellorDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/counsellor-chat" element={
+            <ProtectedRoute allowedRoles={["counsellor"]}>
               <CounsellorChatPage />
             </ProtectedRoute>
-          }
-        />
-      </Routes>
+          } />
+
+          {/* Admin */}
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/appointments" element={
+            <ProtectedRoute allowedRoles={["student", "user"]}>
+              <AppointmentBooking />
+            </ProtectedRoute>
+          } />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }

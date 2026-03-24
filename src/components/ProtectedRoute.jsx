@@ -1,25 +1,38 @@
-import React from "react";
 import { Navigate } from "react-router-dom";
-import { isAuthenticated, getUserRole } from "../utils/auth";
+import { useAuth } from "../context/AuthContext";
 
-function ProtectedRoute({ children, allowedRole }) {
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" />;
+// Usage: <ProtectedRoute allowedRoles={["student"]}><UserDashboard /></ProtectedRoute>
+function ProtectedRoute({ children, allowedRoles }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={styles.loadingScreen}>
+        <p style={styles.loadingText}>Loading...</p>
+      </div>
+    );
   }
 
-  const role = getUserRole();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
-  if (allowedRole && role !== allowedRole) {
-    // Redirect to correct dashboard
-    if (role === "user") {
-      return <Navigate to="/user-dashboard" />;
-    }
-    if (role === "counsellor") {
-      return <Navigate to="/counsellor-dashboard" />;
-    }
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    // Redirect to correct dashboard based on role
+    if (user.role === "admin")      return <Navigate to="/admin"                replace />;
+    if (user.role === "counsellor") return <Navigate to="/counsellor-dashboard" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
 }
+
+const styles = {
+  loadingScreen: {
+    display: "flex", alignItems: "center", justifyContent: "center",
+    height: "100vh", backgroundColor: "#f3f4f6",
+  },
+  loadingText: { fontSize: "16px", color: "#6b7280" },
+};
 
 export default ProtectedRoute;
