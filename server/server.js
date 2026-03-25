@@ -16,6 +16,11 @@ app.use(cors({
 app.use(express.json());
 
 const aiChatRoutes = require("./routes/aiChat");
+if (!aiChatRoutes || typeof aiChatRoutes !== "function") {
+  console.error("aiChatRoutes is not a valid router!");
+}
+app.use("/api/ai-chat", aiChatRoutes);
+
 const authRoutes = require("./routes/auth"); 
 
 app.use("/api/ai-chat", aiChatRoutes);
