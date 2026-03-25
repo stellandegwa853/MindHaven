@@ -14,7 +14,7 @@ import Resources           from "./pages/Resources";
 import Journal             from "./pages/Journal";
 import SessionHistory      from "./pages/SessionHistory";
 import Profile             from "./pages/Profile";
-import AppointmentBooking from "./pages/Appointmentbooking";
+import AppointmentBooking from "./pages/AppointmentBooking";
 import AIChatBot from "./pages/AIChatBot";
 
 function App() {
