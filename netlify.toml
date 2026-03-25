@@ -1,0 +1,9 @@
+[build]
+  base = "MindHaven"
+  command = "npm run build"
+  publish = "MindHaven/dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
