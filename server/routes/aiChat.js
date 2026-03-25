@@ -1,5 +1,5 @@
 const express = require("express");
-const auth    = require("../middleware/auth");
+const auth = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -22,35 +22,43 @@ Guidelines:
 router.post("/", auth, async (req, res) => {
   const { messages } = req.body;
 
+  // ✅ Validate input
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: "messages array is required" });
   }
 
   try {
+    // ✅ Call Anthropic API
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        "Content-Type":      "application/json",
-        "x-api-key":         process.env.ANTHROPIC_API_KEY,
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model:      "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system:     SYSTEM_PROMPT,
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 500, // ✅ safer for free tier
+        system: SYSTEM_PROMPT,
         messages,
       }),
     });
 
     const data = await response.json();
 
+    // ✅ Handle API errors
     if (!response.ok) {
       console.error("Anthropic API error:", data);
       return res.status(502).json({ error: "AI service unavailable" });
     }
 
-    const text = data.content?.find((b) => b.type === "text")?.text;
+    // ✅ Extract AI response safely
+    const text =
+      data.content?.find((block) => block.type === "text")?.text ||
+      "I'm here for you. Could you tell me a bit more about how you're feeling?";
+
     res.json({ reply: text });
+
   } catch (err) {
     console.error("AI chat error:", err);
     res.status(500).json({ error: "Server error" });
