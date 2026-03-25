@@ -1,7 +1,6 @@
 [build]
-  base = "MindHaven"
   command = "npm run build"
-  publish = "MindHaven/dist"
+  publish = "dist"
 
 [[redirects]]
   from = "/*"
