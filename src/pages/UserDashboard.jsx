@@ -10,21 +10,17 @@ function UserDashboard() {
 
   const [mood, setMood] = useState(null);
   const [moodSaved, setMoodSaved] = useState(false);
-  const [journalOpen, setJournalOpen] = useState(false);
-  const [journalText, setJournalText] = useState("");
-  const [journalSaved, setJournalSaved] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
-  const userName = "Stella"; // replace with auth context user name
+  const userName = "Stella";
 
-  // Chart refs
-  const moodLineRef   = useRef(null);
-  const sessionPieRef = useRef(null);
-  const activityBarRef= useRef(null);
-  const moodDonutRef  = useRef(null);
+  const moodLineRef    = useRef(null);
+  const sessionPieRef  = useRef(null);
+  const activityBarRef = useRef(null);
+  const moodDonutRef   = useRef(null);
 
-  const moodLineData   = { labels: ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], values: [3,4,3,5,4,4,5] };
-  const activityData   = { labels: ["Oct","Nov","Dec","Jan","Feb","Mar"], sessions: [2,3,2,5,4,6], journals: [4,6,3,9,10,14] };
+  const moodLineData = { labels: ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], values: [3,4,3,5,4,4,5] };
+  const activityData = { labels: ["Oct","Nov","Dec","Jan","Feb","Mar"], sessions: [2,3,2,5,4,6], journals: [4,6,3,9,10,14] };
 
   useEffect(() => {
     const gridColor = "rgba(136,135,128,0.12)";
@@ -113,25 +109,19 @@ function UserDashboard() {
   ];
 
   const navItems = [
-    { label: "Dashboard", path: "/dashboard" },
-    { label: "Chat",      path: "/chat" },
-    { label: "Resources", path: "/resources" },
-    { label: "Journal",   path: "/journal" },
-    { label: "Appointments",   path: "/appointments" },
+    { label: "Dashboard",    path: "/dashboard"    },
+    { label: "Chat",         path: "/chat"         },
+    { label: "AI Support",   path: "/ai-chat"      },
+    { label: "Appointments", path: "/appointments" },
+    { label: "Journal",      path: "/journal"      },
+    { label: "Sessions",     path: "/session-history" },
+    { label: "Resources",    path: "/resources"    },
   ];
 
   const handleSaveMood = () => {
     if (!mood) return;
     setMoodSaved(true);
     // TODO: POST /api/mood { mood_score: mood.value }
-  };
-
-  const handleSaveJournal = () => {
-    if (!journalText.trim()) return;
-    setJournalSaved(true);
-    setJournalText("");
-    setTimeout(() => { setJournalOpen(false); setJournalSaved(false); }, 1500);
-    // TODO: POST /api/journal { body: journalText }
   };
 
   const handleLogout = () => {
@@ -239,55 +229,11 @@ function UserDashboard() {
           </div>
         </div>
 
-        {/* Start Session Card */}
-        <div style={styles.sessionCard}>
-          <div>
-            <h3 style={{ margin: "0 0 6px" }}>Need support right now?</h3>
-            <p style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}>
-              Connect instantly with a verified peer counsellor in a safe and supportive environment.
-            </p>
-          </div>
-          <button style={styles.primaryButton} onClick={() => navigate("/chat")}>
-            Start Peer Session
-          </button>
-        </div>
-
-        {/* Journal Shortcut */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <h3 style={styles.sectionTitle}>Journal</h3>
-            <button style={styles.outlineButton} onClick={() => { setJournalOpen(!journalOpen); setJournalSaved(false); }}>
-              {journalOpen ? "Cancel" : "+ New Entry"}
-            </button>
-          </div>
-
-          {journalOpen && (
-            <div style={styles.journalBox}>
-              <textarea
-                style={styles.journalInput}
-                rows={4}
-                placeholder="Write freely — this is your private space..."
-                value={journalText}
-                onChange={(e) => setJournalText(e.target.value)}
-              />
-              {journalSaved ? (
-                <p style={styles.savedText}>✓ Entry saved</p>
-              ) : (
-                <button style={journalText.trim() ? styles.primaryButton : styles.disabledButton} onClick={handleSaveJournal}>
-                  Save Entry
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ── Charts Section ── */}
+        {/* Charts Section */}
         <div style={styles.section}>
           <h3 style={styles.sectionTitle}>Your wellness stats</h3>
 
-          {/* Row 1: mood line + session pie + summary stats */}
           <div style={styles.chartsRow3}>
-
             <div style={styles.chartCard}>
               <p style={styles.chartTitle}>Mood over time</p>
               <p style={styles.chartSub}>Last 7 days</p>
@@ -325,9 +271,7 @@ function UserDashboard() {
             </div>
           </div>
 
-          {/* Row 2: activity bar + mood donut */}
           <div style={styles.chartsRow2}>
-
             <div style={styles.chartCard}>
               <p style={styles.chartTitle}>Activity per month</p>
               <p style={styles.chartSub}>Last 6 months</p>
@@ -355,23 +299,7 @@ function UserDashboard() {
           </div>
         </div>
 
-        {/* Previous Sessions */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>Previous Sessions</h3>
-          {[
-            { date: "02 March 2026", duration: "25 mins", counsellor: "Faith Njeri" },
-            { date: "27 February 2026", duration: "18 mins", counsellor: "George Kiprop" },
-          ].map((s, i) => (
-            <div key={i} style={styles.sessionItem}>
-              <span style={{ fontWeight: "500" }}>{s.date}</span>
-              <span style={{ color: "#6b7280", fontSize: "13px" }}>{s.counsellor}</span>
-              <span style={{ color: "#6b7280", fontSize: "13px" }}>{s.duration}</span>
-              <span style={styles.completedBadge}>Completed</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Resources */}
+        {/* Wellness Resources */}
         <div style={styles.section}>
           <h3 style={styles.sectionTitle}>Wellness Resources</h3>
           <div style={styles.resourceButtons}>
@@ -438,7 +366,7 @@ const styles = {
   notifItem: { padding: "10px 16px", borderBottom: "1px solid #f9fafb" },
   notifText: { margin: 0, fontSize: "13px", color: "#374151" },
 
-  twoColRow: { display: "flex", gap: "20px", marginBottom: "20px", flexWrap: "wrap" },
+  twoColRow: { display: "flex", gap: "20px", marginBottom: "28px", flexWrap: "wrap" },
 
   card: {
     flex: 1, minWidth: "260px", backgroundColor: "white",
@@ -453,10 +381,10 @@ const styles = {
     backgroundColor: "#ede9fe", borderRadius: "10px",
     padding: "10px 14px", minWidth: "50px",
   },
-  apptDay: { fontSize: "22px", fontWeight: "bold", color: "#6d28d9", lineHeight: 1 },
+  apptDay:   { fontSize: "22px", fontWeight: "bold", color: "#6d28d9", lineHeight: 1 },
   apptMonth: { fontSize: "12px", color: "#7c3aed", marginTop: "2px" },
   apptCounsellor: { margin: "0 0 2px", fontWeight: "600", fontSize: "14px" },
-  apptMeta: { margin: "2px 0", fontSize: "12px", color: "#6b7280" },
+  apptMeta:  { margin: "2px 0", fontSize: "12px", color: "#6b7280" },
 
   moodRow: { display: "flex", gap: "6px", marginBottom: "14px", justifyContent: "space-between" },
   moodBtn: {
@@ -465,67 +393,9 @@ const styles = {
     cursor: "pointer", transition: "all 0.15s",
   },
 
-  sessionCard: {
-    backgroundColor: "white", padding: "20px 24px", borderRadius: "12px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-    marginBottom: "28px", gap: "20px", flexWrap: "wrap",
-    borderLeft: "4px solid #818cf8",
-  },
+  section: { marginBottom: "32px" },
+  sectionTitle: { fontSize: "15px", fontWeight: "600", margin: "0 0 16px", color: "#111827" },
 
-  section: { marginBottom: "32px", maxWidth: "700px" },
-  sectionTitle: { fontSize: "15px", fontWeight: "600", margin: "0 0 12px", color: "#111827" },
-  sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" },
-
-  journalBox: {
-    backgroundColor: "white", borderRadius: "12px",
-    padding: "16px", boxShadow: "0 4px 10px rgba(0,0,0,0.04)",
-  },
-  journalInput: {
-    width: "100%", borderRadius: "8px", border: "1px solid #e5e7eb",
-    padding: "10px 12px", fontSize: "13px", resize: "vertical",
-    fontFamily: "Arial, sans-serif", marginBottom: "10px",
-    boxSizing: "border-box", outline: "none",
-  },
-
-  sessionItem: {
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-    backgroundColor: "white", padding: "12px 16px",
-    borderRadius: "10px", marginBottom: "8px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-    borderLeft: "3px solid #818cf8",
-  },
-  completedBadge: {
-    padding: "3px 10px", borderRadius: "20px",
-    backgroundColor: "#dcfce7", color: "#16a34a",
-    fontSize: "12px", fontWeight: "500",
-  },
-
-  resourceButtons: { display: "flex", gap: "10px", flexWrap: "wrap" },
-  resourceButton: {
-    padding: "10px 16px", borderRadius: "8px",
-    border: "1px solid #818cf8", backgroundColor: "white",
-    color: "#818cf8", cursor: "pointer", fontSize: "13px",
-  },
-
-  primaryButton: {
-    padding: "9px 16px", borderRadius: "8px", border: "none",
-    backgroundColor: "#818cf8", color: "white",
-    cursor: "pointer", fontSize: "13px",
-  },
-  outlineButton: {
-    padding: "7px 14px", borderRadius: "8px",
-    border: "1px solid #818cf8", backgroundColor: "white",
-    color: "#818cf8", cursor: "pointer", fontSize: "13px",
-  },
-  disabledButton: {
-    padding: "9px 16px", borderRadius: "8px", border: "none",
-    backgroundColor: "#e5e7eb", color: "#9ca3af",
-    cursor: "not-allowed", fontSize: "13px",
-  },
-  savedText: { color: "#16a34a", fontSize: "13px", margin: "4px 0 0" },
-
-  // Charts
   chartsRow3: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: "16px", marginBottom: "16px" },
   chartsRow2: { display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1fr)", gap: "16px" },
   chartCard: {
@@ -541,6 +411,25 @@ const styles = {
   statRow:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f9fafb", fontSize: "12px" },
   statLabel:  { color: "#6b7280" },
   statVal:    { fontWeight: "600", color: "#374151" },
+
+  resourceButtons: { display: "flex", gap: "10px", flexWrap: "wrap" },
+  resourceButton: {
+    padding: "10px 16px", borderRadius: "8px",
+    border: "1px solid #818cf8", backgroundColor: "white",
+    color: "#818cf8", cursor: "pointer", fontSize: "13px",
+  },
+
+  primaryButton: {
+    padding: "9px 16px", borderRadius: "8px", border: "none",
+    backgroundColor: "#818cf8", color: "white",
+    cursor: "pointer", fontSize: "13px",
+  },
+  disabledButton: {
+    padding: "9px 16px", borderRadius: "8px", border: "none",
+    backgroundColor: "#e5e7eb", color: "#9ca3af",
+    cursor: "not-allowed", fontSize: "13px",
+  },
+  savedText: { color: "#16a34a", fontSize: "13px", margin: "4px 0 0" },
 };
 
 export default UserDashboard;
