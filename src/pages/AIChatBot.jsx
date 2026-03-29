@@ -52,13 +52,10 @@ function AIChatBot() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:5000/api/ai-chat", {
+      const response = await fetch("https://mindhaven-3.onrender.com/api/ai-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
           messages: [{ role: "user", content: "Hello" }],
         }),
       });
@@ -95,14 +92,11 @@ function AIChatBot() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
           messages: apiMessages,
         }),
       });
       const data = await response.json();
-      const reply = data.content?.find((b) => b.type === "text")?.text;
+      const text = data.reply || "Hello! I'm Haven. How are you feeling today?";
       if (reply) {
         setMessages((prev) => [...prev, { role: "assistant", text: reply, time: getNow() }]);
       } else {
