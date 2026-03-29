@@ -11,6 +11,8 @@ const io     = new Server(server, {
     origin: [
       "http://localhost:5173",
       "https://mind-haven-tshx.vercel.app",
+      "https://mindhaven.vercel.app",
+      "https://dashboard.render.com",
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
@@ -21,6 +23,8 @@ app.use(cors({
   origin: [
     "http://localhost:5173",
     "https://mind-haven-tshx.vercel.app",
+    "https://mindhaven.vercel.app",
+    "https://dashboard.render.com",
   ],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   credentials: true,
