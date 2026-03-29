@@ -305,7 +305,7 @@ const S = {
   bookSessionBtn: { padding: "8px 16px", borderRadius: "8px", border: "1px solid #818cf8", backgroundColor: "white", color: "#818cf8", cursor: "pointer", fontSize: "13px", fontWeight: "500" },
 
   // Landing screen
-  landing:     { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", backgroundColor: "#f3f4f6" },
+  landing: { flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", backgroundColor: "#f3f4f6", overflowY: "auto" },
   landingCard: { backgroundColor: "white", borderRadius: "16px", padding: "40px 36px", maxWidth: "480px", width: "100%", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", textAlign: "center" },
   landingAvatar: { width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#818cf8", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "28px", margin: "0 auto 16px" },
   landingTitle:  { margin: "0 0 12px", fontSize: "22px", fontWeight: "bold", color: "#111827" },
