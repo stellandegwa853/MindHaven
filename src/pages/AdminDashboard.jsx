@@ -4,23 +4,20 @@ import { logoutUser } from "../utils/auth";
 import { Chart, registerables } from "chart.js";
 Chart.register(...registerables);
 
-// ── constants ─────────────────────────────────────────────────────────────────
 const GRID = "rgba(136,135,128,0.12)";
 const TICK = "#888780";
 const TF   = { size: 11 };
 const PU   = "#818cf8";
 const PUL  = "#c7d2fe";
 
-// ── reusable hook: mounts a Chart.js instance, destroys on unmount ────────────
 function useChart(ref, buildConfig) {
   useEffect(() => {
     if (!ref.current) return;
     const chart = new Chart(ref.current, buildConfig());
     return () => chart.destroy();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 }
 
-// ── individual chart components (each owns its canvas + ref) ─────────────────
 function SessionsLine() {
   const r = useRef(null);
   useChart(r, () => ({
@@ -65,7 +62,6 @@ function RiskStackedBar() {
   return <canvas ref={r} />;
 }
 
-
 function PeakHoursBar() {
   const r = useRef(null);
   useChart(r, () => ({
@@ -82,8 +78,7 @@ function PeakHoursBar() {
       plugins: { legend: { display: false } },
       scales: {
         x: { grid: { display: false }, ticks: { font: TF, color: TICK, autoSkip: false } },
-        y: { grid: { color: GRID }, border: { display: false },
-          ticks: { font: TF, color: TICK } },
+        y: { grid: { color: GRID }, border: { display: false }, ticks: { font: TF, color: TICK } },
       },
     },
   }));
@@ -179,7 +174,6 @@ function MoodBar() {
   return <canvas ref={r} />;
 }
 
-// ── small UI helpers ──────────────────────────────────────────────────────────
 function Legend({ items }) {
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "10px" }}>
@@ -206,11 +200,11 @@ function ChartCard({ title, sub, height = 180, legend, children }) {
   );
 }
 
-// ── main component ────────────────────────────────────────────────────────────
 function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab]     = useState("overview");
-  const [userSearch, setUserSearch]   = useState("");
+  const [activeTab, setActiveTab]       = useState("overview");
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const [userSearch, setUserSearch]     = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
 
   const handleLogout = () => { logoutUser(); navigate("/login"); };
@@ -251,7 +245,6 @@ function AdminDashboard() {
     return matchSearch && matchRole;
   });
 
-  // ── tab renderers ─────────────────────────────────────────────────────────
   const renderOverview = () => (
     <>
       <div style={S.cardContainer}>
@@ -269,7 +262,6 @@ function AdminDashboard() {
         ))}
       </div>
 
-      {/* Snapshot charts */}
       <div style={S.chartsRow2}>
         <ChartCard title="Session activity" sub="Last 8 weeks">
           <SessionsLine />
@@ -289,47 +281,12 @@ function AdminDashboard() {
           <RolesDoughnut />
         </ChartCard>
       </div>
-
-      {/* Pending approvals */}
-      <div style={S.section}>
-        <h3 style={S.sectionTitle}>Pending Counsellor Approvals</h3>
-        {counsellors.filter((c) => c.status === "pending").map((c) => (
-          <div key={c.id} style={S.clientCard}>
-            <div>
-              <p style={S.clientName}>{c.name}</p>
-              <p style={S.clientSub}>{c.email} · {c.specialization}</p>
-            </div>
-            <div style={S.actionButtons}>
-              <button style={S.approveButton}>Approve</button>
-              <button style={S.rejectButton}>Reject</button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Unreviewed risk flags */}
-      <div style={S.section}>
-        <h3 style={S.sectionTitle}>Unreviewed Risk Flags</h3>
-        {riskFlags.filter((f) => !f.reviewed).map((f) => (
-          <div key={f.id} style={S.clientCard}>
-            <div>
-              <p style={S.clientName}>{f.student}</p>
-              <p style={S.clientSub}>Source: {f.source} · {f.date}</p>
-            </div>
-            <div style={S.actionButtons}>
-              <span style={f.level === "high" ? S.badgeHigh : S.badgeMedium}>{f.level}</span>
-              <button style={S.primaryButton}>Review</button>
-            </div>
-          </div>
-        ))}
-      </div>
     </>
   );
 
   const renderAnalytics = () => (
     <>
       <h3 style={{ ...S.sectionTitle, marginBottom: "20px" }}>Platform Analytics</h3>
-
       <div style={S.chartsRow2}>
         <ChartCard title="New registrations" sub="Students joining per month" height={200}>
           <RegistrationsLine />
@@ -339,7 +296,6 @@ function AdminDashboard() {
           <ApptDoughnut />
         </ChartCard>
       </div>
-
       <div style={S.chartsRow2}>
         <ChartCard title="Peak usage hours" sub="Average sessions per time slot" height={200}>
           <PeakHoursBar />
@@ -349,7 +305,6 @@ function AdminDashboard() {
           <RiskStackedBar />
         </ChartCard>
       </div>
-
       <div style={S.chartsRow2}>
         <ChartCard title="Sessions per counsellor" sub="All-time totals" height={200}>
           <CounsellorBar />
@@ -358,14 +313,11 @@ function AdminDashboard() {
           <MoodBar />
         </ChartCard>
       </div>
-
       <ChartCard title="User roles breakdown" sub="284 registered users" height={180}
-          legend={[[PU,"Students 88%"],["#16a34a","Counsellors 8%"],["#888780","Admins 4%"]]}>
-          <RolesDoughnut />
-        </ChartCard>
-
-      {/* Key stat pills */}
-      <div style={S.statsGrid}>
+        legend={[[PU,"Students 88%"],["#16a34a","Counsellors 8%"],["#888780","Admins 4%"]]}>
+        <RolesDoughnut />
+      </ChartCard>
+      <div style={{ ...S.statsGrid, marginTop: "16px" }}>
         {[
           { label: "Avg session duration",   value: "23 mins" },
           { label: "Risk detection rate",    value: "4.2%"    },
@@ -497,19 +449,39 @@ function AdminDashboard() {
 
   return (
     <div style={S.container}>
-      <div style={S.sidebar}>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          style={S.overlay}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div style={{ ...S.sidebar, transform: sidebarOpen ? "translateX(0)" : undefined }}>
         <h2 style={S.logo}>Mind Haven</h2>
         {tabs.map((t) => (
           <button key={t.key}
             style={activeTab === t.key ? S.navButtonActive : S.navButton}
-            onClick={() => setActiveTab(t.key)}>
+            onClick={() => { setActiveTab(t.key); setSidebarOpen(false); }}>
             {t.label}
           </button>
         ))}
         <button style={S.logoutButton} onClick={handleLogout}>Logout</button>
       </div>
 
+      {/* Main content */}
       <div style={S.mainContent}>
+
+        {/* Mobile topbar */}
+        <div style={S.mobileTopbar}>
+          <button style={S.hamburger} onClick={() => setSidebarOpen(!sidebarOpen)}>
+            ☰
+          </button>
+          <span style={S.mobileTitle}>Admin Dashboard</span>
+        </div>
+
         <h1 style={S.title}>Admin Dashboard</h1>
         {activeTab === "overview"    && renderOverview()}
         {activeTab === "analytics"  && renderAnalytics()}
@@ -522,26 +494,35 @@ function AdminDashboard() {
   );
 }
 
-// ── styles ────────────────────────────────────────────────────────────────────
 const S = {
-  container:       { display: "flex", height: "100vh", fontFamily: "Arial, sans-serif" },
-  sidebar:         { width: "240px", backgroundColor: "#111827", color: "white", display: "flex", flexDirection: "column", padding: "25px 20px", gap: "10px" },
+  container:       { display: "flex", minHeight: "100vh", fontFamily: "Arial, sans-serif", position: "relative" },
+  overlay:         { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 40 },
+  sidebar: {
+    width: "240px", backgroundColor: "#111827", color: "white",
+    display: "flex", flexDirection: "column", padding: "25px 20px", gap: "10px",
+    position: "fixed", top: 0, left: 0, height: "100vh", zIndex: 50,
+    transition: "transform 0.3s ease",
+    ["@media (max-width: 768px)"]: { transform: "translateX(-100%)" },
+  },
   logo:            { fontSize: "20px", marginBottom: "20px" },
   navButton:       { padding: "10px", borderRadius: "8px", border: "none", backgroundColor: "transparent", color: "#9ca3af", cursor: "pointer", textAlign: "left", fontSize: "14px" },
   navButtonActive: { padding: "10px", borderRadius: "8px", border: "none", backgroundColor: PU, color: "white", cursor: "pointer", textAlign: "left", fontSize: "14px" },
   logoutButton:    { marginTop: "auto", padding: "10px", borderRadius: "8px", border: "1px solid #4b5563", backgroundColor: "transparent", color: "white", cursor: "pointer" },
 
-  mainContent:  { flex: 1, padding: "36px 40px", backgroundColor: "#f3f4f6", overflowY: "auto" },
-  title:        { marginBottom: "28px", fontSize: "24px", fontWeight: "bold" },
+  mainContent:  { flex: 1, padding: "36px 40px", backgroundColor: "#f3f4f6", overflowY: "auto", marginLeft: "240px" },
+  title:        { marginBottom: "28px", fontSize: "24px", fontWeight: "bold", display: "none" },
+
+  mobileTopbar: { display: "none", alignItems: "center", gap: "12px", marginBottom: "20px", padding: "12px 0" },
+  hamburger:    { background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "#111827" },
+  mobileTitle:  { fontSize: "18px", fontWeight: "bold", color: "#111827" },
 
   cardContainer:    { display: "flex", gap: "16px", marginBottom: "24px", flexWrap: "wrap" },
-  summaryCard:      { backgroundColor: "white", padding: "20px 24px", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", minWidth: "150px", flex: "1" },
+  summaryCard:      { backgroundColor: "white", padding: "20px 24px", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", minWidth: "140px", flex: "1" },
   summaryCardTitle: { fontSize: "12px", color: "#6b7280", margin: "0 0 8px", fontWeight: "500" },
   cardNumber:       { fontSize: "28px", fontWeight: "bold", margin: "0" },
   cardSub:          { fontSize: "12px", color: "#9ca3af", margin: "6px 0 0" },
 
   chartsRow2: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: "16px", marginBottom: "16px" },
-  chartsRow3: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: "16px", marginBottom: "24px" },
   chartCard:  { backgroundColor: "white", border: "1px solid #f3f4f6", borderRadius: "12px", padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" },
   chartTitle: { fontSize: "13px", fontWeight: "600", color: "#374151", margin: "0 0 2px" },
   chartSub:   { fontSize: "11px", color: "#9ca3af", margin: "0 0 10px" },
@@ -551,14 +532,14 @@ const S = {
   statLabel:  { fontSize: "12px", color: "#6b7280", margin: "0 0 6px" },
   statValue:  { fontSize: "22px", fontWeight: "bold", color: PU, margin: 0 },
 
-  section:       { marginBottom: "36px", maxWidth: "860px" },
+  section:       { marginBottom: "36px" },
   sectionTitle:  { fontSize: "15px", fontWeight: "600", marginBottom: "14px", color: "#111827" },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" },
 
-  clientCard:   { backgroundColor: "white", padding: "14px 18px", borderRadius: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 3px 8px rgba(0,0,0,0.03)", marginBottom: "10px" },
+  clientCard:   { backgroundColor: "white", padding: "14px 18px", borderRadius: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 3px 8px rgba(0,0,0,0.03)", marginBottom: "10px", flexWrap: "wrap", gap: "10px" },
   clientName:   { margin: 0, fontWeight: "600", fontSize: "14px" },
   clientSub:    { margin: "3px 0 0", fontSize: "12px", color: "#6b7280" },
-  actionButtons:{ display: "flex", gap: "8px", alignItems: "center" },
+  actionButtons:{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" },
 
   primaryButton:     { padding: "8px 14px", borderRadius: "8px", border: "none", backgroundColor: PU, color: "white", cursor: "pointer", fontSize: "13px" },
   approveButton:     { padding: "7px 13px", borderRadius: "8px", border: "none", backgroundColor: "#16a34a", color: "white", cursor: "pointer", fontSize: "13px" },
@@ -574,11 +555,11 @@ const S = {
   badgeMedium:     { padding: "3px 10px", borderRadius: "20px", backgroundColor: "#fef9c3", color: "#ca8a04", fontSize: "12px", fontWeight: "500" },
   badgeLow:        { padding: "3px 10px", borderRadius: "20px", backgroundColor: "#dcfce7", color: "#16a34a", fontSize: "12px", fontWeight: "500" },
 
-  filterRow:   { display: "flex", gap: "12px", marginBottom: "16px" },
-  searchInput: { flex: 1, padding: "9px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px", outline: "none" },
+  filterRow:   { display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" },
+  searchInput: { flex: 1, minWidth: "200px", padding: "9px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px", outline: "none" },
   selectInput: { padding: "9px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px", backgroundColor: "white", outline: "none" },
-  tableWrapper:{ backgroundColor: "white", borderRadius: "12px", boxShadow: "0 4px 10px rgba(0,0,0,0.03)", overflow: "hidden" },
-  table:       { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
+  tableWrapper:{ backgroundColor: "white", borderRadius: "12px", boxShadow: "0 4px 10px rgba(0,0,0,0.03)", overflow: "auto" },
+  table:       { width: "100%", borderCollapse: "collapse", fontSize: "13px", minWidth: "500px" },
   tableHead:   { backgroundColor: "#f9fafb" },
   th:          { padding: "12px 16px", textAlign: "left", fontWeight: "600", color: "#374151", borderBottom: "1px solid #e5e7eb" },
   tableRow:    { borderBottom: "1px solid #f3f4f6" },
