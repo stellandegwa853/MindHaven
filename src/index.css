@@ -96,3 +96,34 @@ body {
 .link-text:hover {
   text-decoration: underline;
 }
+
+/* Mobile responsiveness for all pages */
+@media (max-width: 768px) {
+  /* Hide sidebar by default on mobile */
+  .sidebar {
+    transform: translateX(-100%);
+    position: fixed;
+    z-index: 50;
+    transition: transform 0.3s ease;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Full width main content on mobile */
+  .main-content {
+    margin-left: 0 !important;
+    padding: 16px !important;
+  }
+
+  /* Stack charts on mobile */
+  .charts-row-2,
+  .charts-row-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stack two-column rows */
+  .two-col-row {
+    flex-direction: column !important;
+  }
+}
