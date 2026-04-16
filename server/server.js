@@ -2,6 +2,7 @@ require("dotenv").config();
 const express    = require("express");
 const cors       = require("cors");
 const http       = require("http");
+const jwt        = require("jsonwebtoken");
 const { Server } = require("socket.io");
 
 const app    = express();
@@ -42,30 +43,62 @@ app.use("/api/mood",         require("./routes/mood"));
 app.use("/api/admin",        require("./routes/admin"));
 app.use("/api/ai-chat",      require("./routes/aiChat"));
 
-app.get("/", (req, res) => res.send("Mind Haven API is running..."));
-app.get("/api/health", (req, res) => res.json({ status: "ok", timestamp: new Date() }));
+app.get("/",          (req, res) => res.send("Mind Haven API is running..."));
+app.get("/api/health",(req, res) => res.json({ status: "ok", timestamp: new Date() }));
 
+// ── Socket.IO authentication middleware ───────────────────────────────────────
+// Every socket connection must carry a valid JWT in socket.auth.token
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) {
+    return next(new Error("Authentication required"));
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded; // { user_id, email, role }
+    next();
+  } catch (err) {
+    next(new Error("Invalid or expired token"));
+  }
+});
+
+// ── Socket.IO event handlers ─────────────────────────────────────────────────
 io.on("connection", (socket) => {
-  console.log("Socket connected:", socket.id);
-  socket.on("join_session", ({ sessionId, userId }) => {
+  const { user_id, role } = socket.user;
+  console.log(`Socket connected: ${socket.id} | user=${user_id} role=${role}`);
+
+  socket.on("join_session", ({ sessionId }) => {
     socket.join(`session_${sessionId}`);
-    socket.to(`session_${sessionId}`).emit("user_joined", { userId });
+    // Notify the other participant that this user is now online
+    socket.to(`session_${sessionId}`).emit("user_joined", { userId: user_id });
+    console.log(`User ${user_id} joined session_${sessionId}`);
   });
+
   socket.on("send_message", ({ sessionId, message }) => {
+    // Relay the message object to the OTHER participant only
     socket.to(`session_${sessionId}`).emit("receive_message", message);
   });
-  socket.on("typing", ({ sessionId, userId }) => {
-    socket.to(`session_${sessionId}`).emit("user_typing", { userId });
+
+  socket.on("typing", ({ sessionId }) => {
+    socket.to(`session_${sessionId}`).emit("user_typing", { userId: user_id });
   });
-  socket.on("stop_typing", ({ sessionId, userId }) => {
-    socket.to(`session_${sessionId}`).emit("user_stop_typing", { userId });
+
+  socket.on("stop_typing", ({ sessionId }) => {
+    socket.to(`session_${sessionId}`).emit("user_stop_typing", { userId: user_id });
   });
+
   socket.on("leave_session", ({ sessionId }) => {
     socket.leave(`session_${sessionId}`);
     socket.to(`session_${sessionId}`).emit("user_left");
+    console.log(`User ${user_id} left session_${sessionId}`);
   });
-  socket.on("disconnect", () => {
-    console.log("Socket disconnected:", socket.id);
+
+  socket.on("disconnect", (reason) => {
+    console.log(`Socket disconnected: ${socket.id} | reason=${reason}`);
+  });
+
+  socket.on("error", (err) => {
+    console.error(`Socket error for user ${user_id}:`, err.message);
   });
 });
 

@@ -1,41 +1,85 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../utils/useSocket";
 import { logoutUser } from "../utils/auth";
 
+/**
+ * CounsellorChatPage – counsellor side of a live counselling session.
+ *
+ * Expects session object via router state:
+ *   navigate("/counsellor-chat", { state: { session: { session_id, student_name, student_id } } })
+ */
 function CounsellorChat() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const { user, token, authFetch } = useAuth();
 
-  const [messages, setMessages] = useState([
-    { id: 1, sender: "student",    text: "Hi, I've been feeling really anxious lately about my exams.", time: "10:01 AM" },
-    { id: 2, sender: "counsellor", text: "Hi there! I'm Faith, your peer counsellor today. Thank you for reaching out — I'm here to listen. Can you tell me more about what's been going on?", time: "10:02 AM" },
-    { id: 3, sender: "student",    text: "I just can't seem to focus and I keep panicking when I open my notes.", time: "10:03 AM" },
-  ]);
+  const session   = location.state?.session ?? null;
+  const sessionId = session?.session_id ?? null;
+  const studentName = session?.student_name ?? "Student";
 
-  const [input, setInput]                       = useState("");
-  const [sessionEnded, setSessionEnded]         = useState(false);
-  const [showEndConfirm, setShowEndConfirm]     = useState(false);
-  const [sessionDuration, setSessionDuration]   = useState(0);
-  const [studentTyping, setStudentTyping]       = useState(false);
-  const [noteText, setNoteText]                 = useState("");
-  const [noteSaved, setNoteSaved]               = useState(false);
-  const [flagged, setFlagged]                   = useState(false);
-  const [showFlagConfirm, setShowFlagConfirm]   = useState(false);
-  const [showNotes, setShowNotes]               = useState(true);
+  const [messages, setMessages]           = useState([]);
+  const [input, setInput]                 = useState("");
+  const [sessionEnded, setSessionEnded]   = useState(false);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [sessionDuration, setSessionDuration] = useState(0);
+  const [studentTyping, setStudentTyping] = useState(false);
+  const [noteText, setNoteText]           = useState("");
+  const [noteSaved, setNoteSaved]         = useState(false);
+  const [flagged, setFlagged]             = useState(false);
+  const [showFlagConfirm, setShowFlagConfirm] = useState(false);
+  const [showNotes, setShowNotes]         = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [error, setError]                 = useState(null);
 
-  const bottomRef   = useRef(null);
-  const inputRef    = useRef(null);
-  const timerRef    = useRef(null);
-  const studentTimer= useRef(null);
-  let msgId         = useRef(4);
+  const bottomRef      = useRef(null);
+  const inputRef       = useRef(null);
+  const timerRef       = useRef(null);
+  const typingDebounce = useRef(null);
+  const msgId          = useRef(1);
 
   const navItems = [
-    { label: "Dashboard",     path: "/counsellor-dashboard" },
-    { label: "Active Session",path: "/counsellor-chat"      },
-    { label: "My Clients",    path: "/counsellor-clients"   },
+    { label: "Dashboard",      path: "/counsellor-dashboard" },
+    { label: "Active Session", path: "/counsellor-chat"      },
   ];
 
-  // Session timer
+  // ── Load message history ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!sessionId) { setLoadingHistory(false); return; }
+
+    authFetch(`/api/messages/${sessionId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const formatted = data.map((m) => ({
+            id:     m.message_id,
+            sender: m.sender_id === user?.user_id ? "counsellor" : "student",
+            text:   m.message_text,
+            time:   new Date(m.sent_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+          }));
+          setMessages(formatted);
+          msgId.current = (data[data.length - 1]?.message_id ?? 0) + 1;
+        }
+      })
+      .catch(() => setError("Could not load message history."))
+      .finally(() => setLoadingHistory(false));
+  }, [sessionId]); // eslint-disable-line
+
+  // ── Socket.IO ───────────────────────────────────────────────────────────────
+  const { sendMessage: socketSend, sendTyping, sendStopTyping } = useSocket(
+    sessionId,
+    token,
+    {
+      onMessage: (message) => {
+        setMessages((prev) => [...prev, { ...message, id: msgId.current++ }]);
+      },
+      onTyping:     () => setStudentTyping(true),
+      onStopTyping: () => setStudentTyping(false),
+    }
+  );
+
+  // ── Session timer ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!sessionEnded) {
       timerRef.current = setInterval(() => setSessionDuration((d) => d + 1), 1000);
@@ -43,36 +87,7 @@ function CounsellorChat() {
     return () => clearInterval(timerRef.current);
   }, [sessionEnded]);
 
-  // Simulate student typing and replies
-  useEffect(() => {
-    if (sessionEnded) return;
-    const scheduleStudentMessage = () => {
-      const delay = 12000 + Math.random() * 10000;
-      studentTimer.current = setTimeout(() => {
-        setStudentTyping(true);
-        setTimeout(() => {
-          const studentMessages = [
-            "I've been having trouble sleeping too.",
-            "Do you think talking to a professional would help?",
-            "Sometimes I feel like no one understands what I'm going through.",
-            "I tried the breathing exercises but I'm not sure if they're working.",
-            "Thank you, this is actually helping me feel better.",
-          ];
-          const text = studentMessages[Math.floor(Math.random() * studentMessages.length)];
-          setMessages((prev) => [
-            ...prev,
-            { id: msgId.current++, sender: "student", text, time: getNow() },
-          ]);
-          setStudentTyping(false);
-          scheduleStudentMessage();
-        }, 2000);
-      }, delay);
-    };
-    scheduleStudentMessage();
-    return () => clearTimeout(studentTimer.current);
-  }, [sessionEnded]);
-
-  // Auto-scroll
+  // ── Auto-scroll ─────────────────────────────────────────────────────────────
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, studentTyping]);
@@ -86,56 +101,145 @@ function CounsellorChat() {
   const getNow = () =>
     new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
-  const sendMessage = () => {
+  // ── Send message (DB + socket) ──────────────────────────────────────────────
+  const sendMessage = useCallback(async () => {
     const text = input.trim();
-    if (!text || sessionEnded) return;
-    setMessages((prev) => [
-      ...prev,
-      { id: msgId.current++, sender: "counsellor", text, time: getNow() },
-    ]);
+    if (!text || sessionEnded || !sessionId) return;
+
+    const optimisticMsg = {
+      id:     msgId.current++,
+      sender: "counsellor",
+      text,
+      time:   getNow(),
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
     setInput("");
     inputRef.current?.focus();
-    // TODO: POST /api/messages { session_id, text }
-  };
+    sendStopTyping(user?.user_id);
+
+    try {
+      const res = await authFetch("/api/messages", {
+        method: "POST",
+        body: JSON.stringify({ session_id: sessionId, message_text: text }),
+      });
+      if (!res.ok) throw new Error("Failed to save message");
+      const saved = await res.json();
+
+      socketSend({
+        sender:     "counsellor",
+        text,
+        time:       getNow(),
+        message_id: saved.message_id,
+        sender_id:  user?.user_id,
+      });
+    } catch (err) {
+      console.error("Send message error:", err);
+      setError("Message failed to send. Please try again.");
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
+    }
+  }, [input, sessionEnded, sessionId, user, authFetch, socketSend, sendStopTyping]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+      return;
     }
+    sendTyping(user?.user_id);
+    clearTimeout(typingDebounce.current);
+    typingDebounce.current = setTimeout(() => sendStopTyping(user?.user_id), 2000);
   };
 
-  const handleSaveNote = () => {
-    if (!noteText.trim()) return;
-    setNoteSaved(true);
-    setTimeout(() => setNoteSaved(false), 2000);
-    // TODO: PUT /api/sessions/:id/notes { notes: noteText }
-  };
-
-  const handleFlagRisk = () => {
-    setFlagged(true);
-    setShowFlagConfirm(false);
-    setMessages((prev) => [
-      ...prev,
-      { id: msgId.current++, sender: "system", text: "⚠ Risk flag raised. Admin has been notified.", time: getNow() },
-    ]);
-    // TODO: POST /api/risk-flags { session_id, source: "message", risk_level: "high" }
-  };
-
-  const endSession = () => {
+  // ── End session (DB) ────────────────────────────────────────────────────────
+  const endSession = useCallback(async () => {
     clearInterval(timerRef.current);
-    clearTimeout(studentTimer.current);
-    setStudentTyping(false);
     setSessionEnded(true);
     setShowEndConfirm(false);
     setMessages((prev) => [
       ...prev,
-      { id: msgId.current++, sender: "system", text: "Session ended by counsellor. Duration: " + formatDuration(sessionDuration), time: getNow() },
+      { id: msgId.current++, sender: "system", text: "Session ended by counsellor.", time: getNow() },
     ]);
-    // TODO: PATCH /api/sessions/:id { session_status: "completed", ended_at: new Date() }
-  };
+
+    if (sessionId) {
+      try {
+        await authFetch(`/api/sessions/${sessionId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            session_status: "completed",
+            session_notes:  noteText.trim() || undefined,
+          }),
+        });
+      } catch (err) {
+        console.error("Failed to update session:", err);
+      }
+    }
+  }, [sessionId, noteText, authFetch]);
+
+  // ── Save notes (persisted to session record) ────────────────────────────────
+  const handleSaveNote = useCallback(async () => {
+    if (!sessionId || !noteText.trim()) return;
+    try {
+      await authFetch(`/api/sessions/${sessionId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ session_notes: noteText.trim() }),
+      });
+      setNoteSaved(true);
+    } catch (err) {
+      console.error("Save note error:", err);
+      setError("Failed to save notes.");
+    }
+  }, [sessionId, noteText, authFetch]);
+
+  // ── Flag session ─────────────────────────────────────────────────────────────
+  const handleFlag = useCallback(async () => {
+    setFlagged(true);
+    setShowFlagConfirm(false);
+    setMessages((prev) => [
+      ...prev,
+      { id: msgId.current++, sender: "system", text: "⚑ Session flagged — admin has been notified.", time: getNow() },
+    ]);
+    // The actual risk flag was already created automatically by the messages route
+    // when high-risk keywords were detected. This is a manual flag from the counsellor.
+    if (sessionId) {
+      try {
+        await authFetch("/api/messages", {
+          method: "POST",
+          body: JSON.stringify({
+            session_id:   sessionId,
+            message_text: "[COUNSELLOR FLAG] This session was manually flagged by the counsellor.",
+          }),
+        });
+      } catch (err) {
+        console.error("Flag error:", err);
+      }
+    }
+  }, [sessionId, authFetch]);
 
   const handleLogout = () => { logoutUser(); navigate("/login"); };
+
+  // ── No active session guard ─────────────────────────────────────────────────
+  if (!session) {
+    return (
+      <div style={S.container}>
+        <div style={S.sidebar}>
+          <h2 style={S.logo}>Mind Haven</h2>
+          {navItems.map((item) => (
+            <button key={item.path} style={location.pathname === item.path ? S.navButtonActive : S.navButton} onClick={() => navigate(item.path)}>
+              {item.label}
+            </button>
+          ))}
+          <button style={S.logoutButton} onClick={handleLogout}>Logout</button>
+        </div>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f3f4f6" }}>
+          <div style={{ textAlign: "center", color: "#6b7280" }}>
+            <p style={{ fontSize: "18px", fontWeight: 600 }}>No active session</p>
+            <p style={{ fontSize: "14px" }}>Start a session from your dashboard by selecting a confirmed appointment.</p>
+            <button style={{ ...S.backBtn, marginTop: "16px" }} onClick={() => navigate("/counsellor-dashboard")}>Go to Dashboard</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={S.container}>
@@ -144,30 +248,24 @@ function CounsellorChat() {
       <div style={S.sidebar}>
         <h2 style={S.logo}>Mind Haven</h2>
         {navItems.map((item) => (
-          <button
-            key={item.path}
-            style={location.pathname === item.path ? S.navButtonActive : S.navButton}
-            onClick={() => navigate(item.path)}
-          >
+          <button key={item.path} style={location.pathname === item.path ? S.navButtonActive : S.navButton} onClick={() => navigate(item.path)}>
             {item.label}
           </button>
         ))}
         <button style={S.logoutButton} onClick={handleLogout}>Logout</button>
       </div>
 
-      {/* Main — chat + right panel */}
       <div style={S.main}>
-
         {/* Chat column */}
         <div style={S.chatColumn}>
 
           {/* Header */}
           <div style={S.chatHeader}>
             <div style={S.headerLeft}>
-              <div style={S.avatar}>AN</div>
+              <div style={S.avatar}>{studentName.slice(0, 2).toUpperCase()}</div>
               <div>
-                <p style={S.studentName}>Anonymous Student</p>
-                <p style={S.studentMeta}>Session ID #2048 · Anxiety & Stress</p>
+                <p style={S.studentName}>{studentName}</p>
+                <p style={S.studentMeta}>Session #{sessionId}</p>
               </div>
             </div>
             <div style={S.headerRight}>
@@ -176,29 +274,30 @@ function CounsellorChat() {
                 {formatDuration(sessionDuration)}
               </div>
               {!flagged && !sessionEnded && (
-                <button style={S.flagBtn} onClick={() => setShowFlagConfirm(true)}>
-                  ⚑ Flag Risk
-                </button>
+                <button style={S.flagBtn} onClick={() => setShowFlagConfirm(true)}>⚑ Flag</button>
               )}
-              {flagged && (
-                <span style={S.flaggedBadge}>⚑ Flagged</span>
+              {flagged && <span style={S.flaggedBadge}>⚑ Flagged</span>}
+              {!sessionEnded && (
+                <button style={S.endBtn} onClick={() => setShowEndConfirm(true)}>End Session</button>
               )}
-              {!sessionEnded ? (
-                <button style={S.endBtn} onClick={() => setShowEndConfirm(true)}>
-                  End Session
-                </button>
-              ) : (
-                <button style={S.backBtn} onClick={() => navigate("/counsellor-dashboard")}>
-                  Back to Dashboard
-                </button>
+              {sessionEnded && (
+                <button style={S.backBtn} onClick={() => navigate("/counsellor-dashboard")}>Dashboard</button>
               )}
             </div>
           </div>
 
-          {/* End session confirm */}
+          {/* Error banner */}
+          {error && (
+            <div style={S.errorBanner}>
+              <p style={{ margin: 0, fontSize: "13px" }}>{error}</p>
+              <button style={S.errorClose} onClick={() => setError(null)}>✕</button>
+            </div>
+          )}
+
+          {/* End-session confirm */}
           {showEndConfirm && (
             <div style={S.confirmBanner}>
-              <p style={S.confirmText}>End this session? Make sure to save your notes first.</p>
+              <p style={S.confirmText}>End this session? Notes will be saved.</p>
               <div style={S.confirmBtns}>
                 <button style={S.confirmYes} onClick={endSession}>Yes, end session</button>
                 <button style={S.confirmNo}  onClick={() => setShowEndConfirm(false)}>Cancel</button>
@@ -206,12 +305,12 @@ function CounsellorChat() {
             </div>
           )}
 
-          {/* Flag risk confirm */}
+          {/* Flag confirm */}
           {showFlagConfirm && (
-            <div style={{ ...S.confirmBanner, backgroundColor: "#fff7ed", borderBottomColor: "#fed7aa" }}>
-              <p style={{ ...S.confirmText, color: "#c2410c" }}>Raise a risk flag? This will notify the admin.</p>
+            <div style={{ ...S.confirmBanner, backgroundColor: "#fff7ed", borderColor: "#fed7aa" }}>
+              <p style={{ ...S.confirmText, color: "#c2410c" }}>Flag this session and notify admin?</p>
               <div style={S.confirmBtns}>
-                <button style={{ ...S.confirmYes, backgroundColor: "#ea580c" }} onClick={handleFlagRisk}>Yes, flag this session</button>
+                <button style={{ ...S.confirmYes, backgroundColor: "#ea580c" }} onClick={handleFlag}>Yes, flag session</button>
                 <button style={S.confirmNo} onClick={() => setShowFlagConfirm(false)}>Cancel</button>
               </div>
             </div>
@@ -223,35 +322,28 @@ function CounsellorChat() {
               Session started · {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
             </div>
 
+            {loadingHistory && <p style={{ color: "#9ca3af", textAlign: "center", fontSize: "13px" }}>Loading messages…</p>}
+
             {messages.map((msg) => {
               if (msg.sender === "system") {
-                return (
-                  <div key={msg.id} style={S.systemMsg}>
-                    {msg.text}
-                  </div>
-                );
+                return <div key={msg.id} style={S.systemMsg}><span>{msg.text}</span></div>;
               }
-
               const isCounsellor = msg.sender === "counsellor";
               return (
                 <div key={msg.id} style={{ ...S.msgRow, justifyContent: isCounsellor ? "flex-end" : "flex-start" }}>
-                  {!isCounsellor && <div style={S.msgAvatar}>AN</div>}
+                  {!isCounsellor && <div style={S.msgAvatar}>{studentName.slice(0, 2).toUpperCase()}</div>}
                   <div style={{ maxWidth: "65%" }}>
-                    <div style={isCounsellor ? S.bubbleCounsellor : S.bubbleStudent}>
-                      {msg.text}
-                    </div>
-                    <p style={{ ...S.timestamp, textAlign: isCounsellor ? "right" : "left" }}>
-                      {msg.time}
-                    </p>
+                    <div style={isCounsellor ? S.bubbleCounsellor : S.bubbleStudent}>{msg.text}</div>
+                    <p style={{ ...S.timestamp, textAlign: isCounsellor ? "right" : "left" }}>{msg.time}</p>
                   </div>
                 </div>
               );
             })}
 
-            {/* Student typing indicator */}
+            {/* Typing indicator */}
             {studentTyping && (
               <div style={{ ...S.msgRow, justifyContent: "flex-start" }}>
-                <div style={S.msgAvatar}>AN</div>
+                <div style={S.msgAvatar}>{studentName.slice(0, 2).toUpperCase()}</div>
                 <div style={S.typingBubble}>
                   <span className="dot1" style={S.dot} />
                   <span className="dot2" style={S.dot} />
@@ -267,10 +359,8 @@ function CounsellorChat() {
           <div style={S.inputArea}>
             {sessionEnded ? (
               <div style={S.sessionEndedBar}>
-                <p style={S.sessionEndedText}>Session ended · {formatDuration(sessionDuration)}</p>
-                <button style={S.backBtn} onClick={() => navigate("/counsellor-dashboard")}>
-                  Back to Dashboard
-                </button>
+                <p style={S.sessionEndedText}>Session ended.</p>
+                <button style={{ ...S.backBtn }} onClick={() => navigate("/counsellor-dashboard")}>Back to Dashboard</button>
               </div>
             ) : (
               <>
@@ -278,7 +368,7 @@ function CounsellorChat() {
                   ref={inputRef}
                   style={S.input}
                   rows={1}
-                  placeholder="Type a response... (Enter to send)"
+                  placeholder="Type a response… (Enter to send)"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -295,30 +385,17 @@ function CounsellorChat() {
           </div>
         </div>
 
-        {/* Right panel — student info + notes */}
+        {/* Right panel */}
         <div style={S.rightPanel}>
-
-          {/* Toggle tabs */}
           <div style={S.panelTabs}>
-            <button
-              style={showNotes ? S.panelTabActive : S.panelTab}
-              onClick={() => setShowNotes(true)}
-            >
-              Session Notes
-            </button>
-            <button
-              style={!showNotes ? S.panelTabActive : S.panelTab}
-              onClick={() => setShowNotes(false)}
-            >
-              Student Info
-            </button>
+            <button style={showNotes ? S.panelTabActive : S.panelTab} onClick={() => setShowNotes(true)}>Notes</button>
+            <button style={!showNotes ? S.panelTabActive : S.panelTab} onClick={() => setShowNotes(false)}>Student</button>
           </div>
 
           {showNotes ? (
-            /* Session notes */
             <div style={S.panelBody}>
               <p style={S.panelLabel}>Private session notes</p>
-              <p style={S.panelHint}>These notes are only visible to you and admins.</p>
+              <p style={S.panelHint}>Only visible to you and admins.</p>
               <textarea
                 style={S.notesInput}
                 rows={10}
@@ -332,59 +409,40 @@ function CounsellorChat() {
                 <button
                   style={noteText.trim() ? S.saveNoteBtn : S.saveNoteBtnDisabled}
                   onClick={handleSaveNote}
+                  disabled={!noteText.trim()}
                 >
                   Save Notes
                 </button>
               )}
 
-              {/* Quick note prompts */}
               <p style={{ ...S.panelLabel, marginTop: "20px" }}>Quick prompts</p>
               {["Discussed coping strategies", "Referred to professional", "Follow-up needed", "Risk assessed — low"].map((prompt) => (
-                <button
-                  key={prompt}
-                  style={S.promptBtn}
-                  onClick={() => {
-                    setNoteText((prev) => prev ? prev + "\n• " + prompt : "• " + prompt);
-                    setNoteSaved(false);
-                  }}
-                >
+                <button key={prompt} style={S.promptBtn} onClick={() => {
+                  setNoteText((prev) => prev ? prev + "\n• " + prompt : "• " + prompt);
+                  setNoteSaved(false);
+                }}>
                   + {prompt}
                 </button>
               ))}
             </div>
           ) : (
-            /* Student info */
             <div style={S.panelBody}>
               <div style={S.studentCard}>
-                <div style={S.studentAvatarLg}>AN</div>
-                <p style={S.studentCardName}>Anonymous Student</p>
-                <p style={S.studentCardSub}>USIU-Africa · Session #2048</p>
+                <div style={S.studentAvatarLg}>{studentName.slice(0, 2).toUpperCase()}</div>
+                <p style={S.studentCardName}>{studentName}</p>
+                <p style={S.studentCardSub}>Session #{sessionId}</p>
               </div>
 
               <div style={S.infoSection}>
                 <p style={S.panelLabel}>Session details</p>
                 {[
-                  { label: "Date",       value: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) },
-                  { label: "Duration",   value: formatDuration(sessionDuration) },
-                  { label: "Status",     value: sessionEnded ? "Completed" : "In progress" },
-                  { label: "Topic",      value: "Anxiety & Stress" },
+                  { label: "Date",     value: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) },
+                  { label: "Duration", value: formatDuration(sessionDuration) },
+                  { label: "Status",   value: sessionEnded ? "Completed" : "In progress" },
                 ].map((r) => (
                   <div key={r.label} style={S.infoRow}>
                     <span style={S.infoLabel}>{r.label}</span>
                     <span style={S.infoValue}>{r.value}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={S.infoSection}>
-                <p style={S.panelLabel}>Previous sessions</p>
-                {[
-                  { date: "02 Mar 2026", duration: "25 mins" },
-                  { date: "20 Feb 2026", duration: "18 mins" },
-                ].map((s, i) => (
-                  <div key={i} style={S.prevSession}>
-                    <span style={S.infoLabel}>{s.date}</span>
-                    <span style={{ ...S.infoValue, color: "#16a34a" }}>{s.duration}</span>
                   </div>
                 ))}
               </div>
@@ -403,7 +461,7 @@ function CounsellorChat() {
   );
 }
 
-// Inject typing dot animation once
+// keyframe injection
 const styleTag = document.createElement("style");
 styleTag.textContent = `
   @keyframes blink {
@@ -426,20 +484,14 @@ if (!document.head.querySelector("#counsellor-chat-styles")) {
 
 const S = {
   container: { display: "flex", height: "100vh", fontFamily: "Arial, sans-serif" },
-
-  // Sidebar
   sidebar:         { width: "240px", backgroundColor: "#111827", color: "white", display: "flex", flexDirection: "column", padding: "25px 20px", gap: "10px", flexShrink: 0 },
   logo:            { fontSize: "20px", marginBottom: "20px" },
   navButton:       { padding: "10px", borderRadius: "8px", border: "none", backgroundColor: "transparent", color: "#9ca3af", cursor: "pointer", textAlign: "left", fontSize: "14px" },
   navButtonActive: { padding: "10px", borderRadius: "8px", border: "none", backgroundColor: "#818cf8", color: "white", cursor: "pointer", textAlign: "left", fontSize: "14px" },
   logoutButton:    { marginTop: "auto", padding: "10px", borderRadius: "8px", border: "1px solid #4b5563", backgroundColor: "transparent", color: "white", cursor: "pointer" },
-
-  // Layout
   main:       { flex: 1, display: "flex", overflow: "hidden", backgroundColor: "#f3f4f6" },
   chatColumn: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
   rightPanel: { width: "300px", flexShrink: 0, backgroundColor: "white", borderLeft: "1px solid #e5e7eb", display: "flex", flexDirection: "column", overflow: "hidden" },
-
-  // Chat header
   chatHeader:  { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 24px", backgroundColor: "white", borderBottom: "1px solid #e5e7eb", flexShrink: 0 },
   headerLeft:  { display: "flex", alignItems: "center", gap: "12px" },
   avatar:      { width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "#e0f2fe", color: "#0369a1", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "600", fontSize: "12px", flexShrink: 0 },
@@ -452,63 +504,48 @@ const S = {
   flaggedBadge:{ padding: "5px 12px", borderRadius: "20px", backgroundColor: "#fff7ed", color: "#c2410c", fontSize: "12px", fontWeight: "500", border: "1px solid #fed7aa" },
   endBtn:      { padding: "7px 14px", borderRadius: "8px", border: "1px solid #dc2626", backgroundColor: "white", color: "#dc2626", cursor: "pointer", fontSize: "13px", fontWeight: "500" },
   backBtn:     { padding: "7px 14px", borderRadius: "8px", border: "none", backgroundColor: "#818cf8", color: "white", cursor: "pointer", fontSize: "13px" },
-
-  // Confirm banners
+  errorBanner: { backgroundColor: "#fef2f2", borderBottom: "1px solid #fecaca", padding: "10px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" },
+  errorClose:  { background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: "16px" },
   confirmBanner: { backgroundColor: "#fff7f7", borderBottom: "1px solid #fecaca", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 },
   confirmText:   { margin: 0, fontSize: "13px", color: "#dc2626" },
   confirmBtns:   { display: "flex", gap: "8px" },
   confirmYes:    { padding: "6px 14px", borderRadius: "8px", border: "none", backgroundColor: "#dc2626", color: "white", cursor: "pointer", fontSize: "13px" },
   confirmNo:     { padding: "6px 14px", borderRadius: "8px", border: "1px solid #e5e7eb", backgroundColor: "white", color: "#6b7280", cursor: "pointer", fontSize: "13px" },
-
-  // Messages
   messagesArea: { flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "4px" },
   sessionPill:  { alignSelf: "center", backgroundColor: "#e5e7eb", color: "#6b7280", fontSize: "11px", padding: "4px 14px", borderRadius: "20px", marginBottom: "16px" },
   systemMsg:    { alignSelf: "center", backgroundColor: "#fff7ed", color: "#c2410c", fontSize: "12px", padding: "6px 16px", borderRadius: "20px", margin: "12px 0", textAlign: "center", maxWidth: "80%", border: "1px solid #fed7aa" },
   msgRow:       { display: "flex", alignItems: "flex-end", gap: "8px", marginBottom: "4px" },
   msgAvatar:    { width: "28px", height: "28px", borderRadius: "50%", backgroundColor: "#e0f2fe", color: "#0369a1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: "600", flexShrink: 0, marginBottom: "18px" },
-
   bubbleCounsellor: { backgroundColor: "#818cf8", color: "white", padding: "10px 14px", borderRadius: "18px 18px 4px 18px", fontSize: "14px", lineHeight: 1.5, wordBreak: "break-word" },
   bubbleStudent:    { backgroundColor: "white", color: "#111827", padding: "10px 14px", borderRadius: "18px 18px 18px 4px", fontSize: "14px", lineHeight: 1.5, border: "1px solid #f3f4f6", wordBreak: "break-word" },
   timestamp:    { margin: "4px 4px 8px", fontSize: "10px", color: "#9ca3af" },
-
   typingBubble: { backgroundColor: "white", border: "1px solid #f3f4f6", padding: "12px 16px", borderRadius: "18px 18px 18px 4px", display: "flex", gap: "5px", alignItems: "center", marginBottom: "22px" },
   dot:          { width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "#9ca3af", display: "inline-block" },
-
-  // Input
   inputArea:    { padding: "16px 24px", backgroundColor: "white", borderTop: "1px solid #e5e7eb", display: "flex", gap: "12px", alignItems: "flex-end", flexShrink: 0 },
   input:        { flex: 1, padding: "10px 14px", borderRadius: "10px", border: "1px solid #e5e7eb", fontSize: "14px", outline: "none", resize: "none", fontFamily: "Arial, sans-serif", lineHeight: 1.5 },
   sendBtn:      { padding: "10px 22px", borderRadius: "10px", border: "none", backgroundColor: "#818cf8", color: "white", cursor: "pointer", fontSize: "14px", fontWeight: "500", flexShrink: 0 },
   sendBtnDisabled: { padding: "10px 22px", borderRadius: "10px", border: "none", backgroundColor: "#e5e7eb", color: "#9ca3af", cursor: "not-allowed", fontSize: "14px", flexShrink: 0 },
   sessionEndedBar:  { flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f9fafb", borderRadius: "10px", padding: "12px 16px" },
   sessionEndedText: { margin: 0, fontSize: "13px", color: "#6b7280" },
-
-  // Right panel
   panelTabs:      { display: "flex", borderBottom: "1px solid #e5e7eb", flexShrink: 0 },
   panelTab:       { flex: 1, padding: "12px", border: "none", backgroundColor: "white", color: "#9ca3af", cursor: "pointer", fontSize: "12px", fontWeight: "500" },
   panelTabActive: { flex: 1, padding: "12px", border: "none", backgroundColor: "white", color: "#818cf8", cursor: "pointer", fontSize: "12px", fontWeight: "600", borderBottom: "2px solid #818cf8" },
   panelBody:      { flex: 1, overflowY: "auto", padding: "16px" },
   panelLabel:     { margin: "0 0 6px", fontSize: "12px", fontWeight: "600", color: "#374151" },
   panelHint:      { margin: "0 0 10px", fontSize: "11px", color: "#9ca3af" },
-
-  notesInput:         { width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px", lineHeight: 1.6, resize: "vertical", outline: "none", fontFamily: "Arial, sans-serif", marginBottom: "10px", boxSizing: "border-box" },
-  saveNoteBtn:        { padding: "8px 16px", borderRadius: "8px", border: "none", backgroundColor: "#818cf8", color: "white", cursor: "pointer", fontSize: "13px", width: "100%" },
-  saveNoteBtnDisabled:{ padding: "8px 16px", borderRadius: "8px", border: "none", backgroundColor: "#e5e7eb", color: "#9ca3af", cursor: "not-allowed", fontSize: "13px", width: "100%" },
-  savedText:          { color: "#16a34a", fontSize: "13px", margin: "4px 0 0", textAlign: "center" },
-
+  notesInput:          { width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px", lineHeight: 1.6, resize: "vertical", outline: "none", fontFamily: "Arial, sans-serif", marginBottom: "10px", boxSizing: "border-box" },
+  saveNoteBtn:         { padding: "8px 16px", borderRadius: "8px", border: "none", backgroundColor: "#818cf8", color: "white", cursor: "pointer", fontSize: "13px", width: "100%" },
+  saveNoteBtnDisabled: { padding: "8px 16px", borderRadius: "8px", border: "none", backgroundColor: "#e5e7eb", color: "#9ca3af", cursor: "not-allowed", fontSize: "13px", width: "100%" },
+  savedText:           { color: "#16a34a", fontSize: "13px", margin: "4px 0 0", textAlign: "center" },
   promptBtn: { display: "block", width: "100%", textAlign: "left", padding: "7px 10px", borderRadius: "6px", border: "1px solid #e5e7eb", backgroundColor: "white", color: "#374151", cursor: "pointer", fontSize: "12px", marginBottom: "6px" },
-
-  // Student info tab
   studentCard:     { textAlign: "center", padding: "16px 0 20px", borderBottom: "1px solid #f3f4f6", marginBottom: "16px" },
   studentAvatarLg: { width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "#e0f2fe", color: "#0369a1", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "600", fontSize: "16px", margin: "0 auto 10px" },
   studentCardName: { margin: "0 0 4px", fontWeight: "600", fontSize: "15px", color: "#111827" },
   studentCardSub:  { margin: 0, fontSize: "12px", color: "#9ca3af" },
-
   infoSection: { marginBottom: "20px" },
   infoRow:     { display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #f9fafb", fontSize: "12px" },
-  prevSession: { display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #f9fafb", fontSize: "12px" },
   infoLabel:   { color: "#9ca3af" },
   infoValue:   { color: "#374151", fontWeight: "500" },
-
   riskLow:  { display: "inline-block", padding: "4px 12px", borderRadius: "20px", backgroundColor: "#dcfce7", color: "#16a34a", fontSize: "12px", fontWeight: "500" },
   riskHigh: { display: "inline-block", padding: "4px 12px", borderRadius: "20px", backgroundColor: "#fff7ed", color: "#c2410c", fontSize: "12px", fontWeight: "500" },
 };
