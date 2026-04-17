@@ -9,27 +9,13 @@ const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "https://mind-haven-tshx.vercel.app",
-      "https://mindhaven.vercel.app",
-      "https://dashboard.render.com",
-    ],
+    origin: "*",
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    credentials: true,
+    credentials: false,
   },
 });
 
-app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://mind-haven-tshx.vercel.app",
-    "https://mindhaven.vercel.app",
-    "https://dashboard.render.com",
-  ],
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  credentials: true,
-}));
+app.use(cors());
 app.use(express.json());
 
 app.use("/api/auth",         require("./routes/auth"));
@@ -47,7 +33,6 @@ app.get("/",          (req, res) => res.send("Mind Haven API is running..."));
 app.get("/api/health",(req, res) => res.json({ status: "ok", timestamp: new Date() }));
 
 // ── Socket.IO authentication middleware ───────────────────────────────────────
-// Every socket connection must carry a valid JWT in socket.auth.token
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token) {
@@ -55,7 +40,7 @@ io.use((socket, next) => {
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.user = decoded; // { user_id, email, role }
+    socket.user = decoded;
     next();
   } catch (err) {
     next(new Error("Invalid or expired token"));
@@ -69,13 +54,11 @@ io.on("connection", (socket) => {
 
   socket.on("join_session", ({ sessionId }) => {
     socket.join(`session_${sessionId}`);
-    // Notify the other participant that this user is now online
     socket.to(`session_${sessionId}`).emit("user_joined", { userId: user_id });
     console.log(`User ${user_id} joined session_${sessionId}`);
   });
 
   socket.on("send_message", ({ sessionId, message }) => {
-    // Relay the message object to the OTHER participant only
     socket.to(`session_${sessionId}`).emit("receive_message", message);
   });
 
